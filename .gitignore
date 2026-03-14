@@ -7,4 +7,7 @@ dist/
 build/
 data/raw_requests/*.json
 data/raw_requests/*.json.gz
+data/phase2/
+data/phase3/
+data/phase4/
 browser_profile/

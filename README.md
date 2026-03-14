@@ -29,15 +29,16 @@ The toolkit does not change any network traffic. It simply records what the brow
 ## Architecture Overview
 
 ```
-main.py                    # Entry point
+main.py                    # Entry point (Phase 1 capture)
 product_observer/
 ├── config.py              # Settings (Pydantic + dotenv)
 ├── logging_config.py      # Rich-based logging
 ├── utils/delays.py        # Human-like delay helper
 ├── models/network.py      # NetworkEvent model
 ├── storage/file_store.py  # Persist responses to disk
-├── browser/controller.py   # Playwright persistent context
+├── browser/controller.py  # Playwright persistent context
 ├── network/observer.py    # Request filtering, capture, logging
+├── phase2/                # Phase 2: load, cluster, infer schemas, report
 └── domains/               # Placeholder for domain specializations (wms, ecommerce, erp)
 ```
 
@@ -77,6 +78,8 @@ cp .env.example .env
 
 ## How to Run
 
+### Phase 1 — Capture network traffic
+
 ```bash
 python main.py
 ```
@@ -86,6 +89,42 @@ python main.py
 3. Interact with the app as needed
 4. API traffic is captured and logged in real time
 5. Press **Ctrl+C** to stop
+
+### Phase 2 — Analyze captured data (endpoint clustering + schema inference)
+
+After capturing requests with Phase 1, run Phase 2 to cluster endpoints and infer response schemas:
+
+```bash
+python -m product_observer.phase2
+```
+
+- **Input** (default: `data/raw_requests/`): directory containing `request_*.json` (or `.json.gz`) from Phase 1.
+- **Output** (default: `data/phase2/`): writes `endpoints.json` and `api_surface.md`. Use `--input DIR` and `--output DIR` to override; use `--no-markdown` to skip the markdown report.
+
+### Phase 3 — Domain discovery (annotate endpoints)
+
+After Phase 2, run Phase 3 to annotate endpoints using domain plugins (category, domain_hint, entities):
+
+```bash
+python -m product_observer.phase3
+```
+
+- **Input** (default: `data/phase2/endpoints.json`): path to Phase 2 endpoints JSON.
+- **Output** (default: `data/phase3/`): writes `annotated_endpoints.json`. Use `--input PATH` and `--output DIR` to override.
+- **Domains** (default: `wms`): which plugins to run. Use `--domains wms ecommerce erp` to run all. Ecommerce and ERP are stubs by default.
+
+### Phase 4 — Knowledge & documentation (API catalog, workflows, narratives)
+
+After Phase 3, run Phase 4 to generate the API catalog, workflow view, and optional LLM-generated workflow narratives:
+
+```bash
+python -m product_observer.phase4
+```
+
+- **Input** (default: `data/phase3/annotated_endpoints.json`): path to Phase 3 annotated endpoints JSON.
+- **Output** (default: `data/phase4/`): writes `api_catalog.md`, `workflows.md`, and (if enabled) `workflow_narratives.md`. Use `--input PATH` and `--output DIR` to override.
+- **Narratives**: Set `ANTHROPIC_API_KEY` to enable LLM-generated workflow narratives. Use `--no-llm` to skip narrative generation.
+- **Context for LLM**: Place `.md` or `.txt` files in `docs/phase4_context/` (or set `PHASE4_CONTEXT_DIR`) to give the LLM extra context for the narrative.
 
 ## Configuration
 
@@ -100,6 +139,8 @@ python main.py
 | `FILTER_DOMAIN` | No | true | Only capture requests from target host |
 | `COMPRESS_RESPONSES` | No | false | Gzip saved response files |
 | `LARGE_RESPONSE_THRESHOLD_BYTES` | No | 1000000 | Warn when response exceeds this size |
+| `ANTHROPIC_API_KEY` | No (Phase 4) | — | Required for Phase 4 workflow narratives; omit or use `--no-llm` to skip |
+| `PHASE4_CONTEXT_DIR` | No | `docs/phase4_context` | Directory of `.md`/`.txt` files used as context for the narrative LLM |
 
 ## Example Output
 
@@ -132,9 +173,9 @@ GET /api/locations -> 200 (45.2 KB) [saved to request_003.json]
 
 ## Future Roadmap
 
-- **Phase 2** – Endpoint clustering and schema inference
-- **Phase 3** – Domain/entity discovery (domains/wms, ecommerce, erp: endpoint patterns, entity extractors, workflow rules)
-- **Phase 4** – Documentation and knowledge generation (templates per domain)
+- **Phase 2** – Implemented: endpoint clustering and schema inference on captured data (`python -m product_observer.phase2`).
+- **Phase 3** – Domain/entity discovery (domains/wms, ecommerce, erp: endpoint patterns, entity extractors, workflow rules).
+- **Phase 4** – Documentation and knowledge generation (templates per domain).
 - HTML/DOM introspection
 
 ## Technical Stack
