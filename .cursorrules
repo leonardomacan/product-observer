@@ -1,0 +1,328 @@
+---
+description: Global development rules for the Product Observer project
+alwaysApply: true
+---
+
+# Product Observer – Cursor Rules
+
+These rules define how the AI agent should reason about and modify this repository.
+
+The project is an **engineering-grade system observation toolkit**, not a quick script.
+All changes must respect the architectural decisions documented in the repository.
+
+Primary documentation sources:
+
+- `docs/architecture.md`
+- `docs/phases.md`
+- `docs/agent-context.md`
+
+If a change conflicts with those documents, **follow the documentation**.
+
+---
+
+# 1. Project Purpose
+
+This project builds a **browser instrumentation toolkit** capable of observing and reverse-engineering web applications.
+
+The system captures network traffic and UI behavior in order to understand systems where:
+
+- backend access is restricted
+- API documentation does not exist
+- the UI is the only reliable interface
+
+The system must behave as a **passive observer**.
+
+It must **never modify, replay, or interfere with application requests**.
+
+---
+
+# 2. Architectural Principles
+
+The system must follow these core principles.
+
+## Domain-Agnostic Core
+
+The core engine must remain **independent from any specific domain**.
+
+Examples of domains:
+
+- WMS
+- ERP
+- ecommerce
+- analytics dashboards
+
+All domain-specific logic must live under:
+
+```
+product_observer/domains/
+```
+
+The core modules must never depend on a domain module.
+
+Allowed core responsibilities:
+
+- browser control
+- network observation
+- event models
+- persistence
+- logging
+- configuration
+
+---
+
+## Passive System Observation
+
+The tool is designed for **black-box analysis**.
+
+The system must only:
+
+- observe browser behavior
+- capture network requests
+- record responses
+- store raw information
+
+The system must NOT:
+
+- mutate requests
+- replay API calls
+- simulate backend interactions
+- perform load testing
+
+---
+
+## Phase-Driven Development
+
+The project evolves through controlled phases.
+
+Always consult:
+
+```
+docs/phases.md
+```
+
+Do not implement features from future phases.
+
+### Phase 1 (Current Phase)
+
+Allowed features:
+
+- Playwright browser launch
+- reuse authenticated session
+- manual navigation by user
+- network request interception
+- raw request/response storage
+- structured logging
+
+Not allowed yet:
+
+- endpoint clustering
+- schema inference
+- entity extraction
+- workflow reconstruction
+- LLM integration
+- documentation generation
+
+If a requested change belongs to a future phase, explain why and avoid implementing it prematurely.
+
+---
+
+# 3. Code Quality Expectations
+
+All code added to the repository must follow:
+
+### Python standards
+
+- Python 3.11+
+- type hints
+- modular structure
+- readable naming
+- clear docstrings
+
+### Design standards
+
+Prefer:
+
+- small modules
+- explicit responsibilities
+- simple abstractions
+
+Avoid:
+
+- large monolithic files
+- premature abstractions
+- unnecessary frameworks
+- tightly coupled components
+
+---
+
+# 4. Repository Structure Rules
+
+The repository should follow a clear modular architecture.
+
+Example structure:
+
+```
+product_observer/
+config/
+browser/
+network/
+storage/
+models/
+utils/
+domains/
+```
+
+Responsibilities:
+
+| Module | Responsibility |
+|--------|-----------------|
+| browser | Playwright browser management |
+| network | request/response observation |
+| models | event data models |
+| storage | persistence of captured data |
+| config | environment configuration |
+| utils | shared utilities |
+| domains | domain-specific extensions |
+
+The **core must never depend on domains**.
+
+Domains depend on core.
+
+---
+
+# 5. Safety Constraints
+
+This tool may interact with **production systems**.
+
+Therefore the agent must ensure:
+
+### Network safety
+
+Prefer capturing only:
+
+- `xhr`
+- `fetch`
+
+Ignore:
+
+- images
+- fonts
+- static assets
+
+### Traffic safety
+
+Use:
+
+- randomized delays
+- no request bursts
+- no aggressive crawling
+
+### Storage safety
+
+Captured data must be stored as:
+
+```
+data/raw_requests/
+```
+
+Optional gzip compression is allowed.
+
+---
+
+# 6. Logging Standards
+
+Logging must be:
+
+- structured
+- human-readable
+- useful for debugging scraping issues
+
+Prefer using `rich` for console output.
+
+Avoid:
+
+- noisy logs
+- large debug dumps unless necessary
+
+---
+
+# 7. Context Management
+
+When a conversation becomes long or the user asks to **update agent context**, follow the rule:
+
+See rule file:
+
+```
+update-agent-context.mdc
+```
+
+The goal is to persist the **project state** into:
+
+```
+docs/agent-context.md
+```
+
+This allows future AI sessions to resume work without chat history.
+
+---
+
+# 8. Documentation Awareness
+
+Before implementing architectural changes, check:
+
+```
+docs/architecture.md
+docs/phases.md
+docs/agent-context.md
+```
+
+If code and documentation diverge:
+
+1. warn the user
+2. ask whether code or docs should be updated
+
+Do not silently change architecture.
+
+---
+
+# 9. Decision Making Guidelines
+
+When adding or modifying code:
+
+1. prefer the **simplest viable solution**
+2. avoid adding new dependencies unless necessary
+3. maintain separation between observation, storage, and analysis
+4. document important decisions
+
+---
+
+# 10. Behavior When Uncertain
+
+If the requested change could:
+
+- violate architecture
+- break phase boundaries
+- introduce domain coupling
+- create unsafe scraping behavior
+
+The agent should:
+
+1. explain the concern
+2. propose a safer alternative
+3. wait for confirmation before proceeding.
+
+---
+
+# 11. Long-Term Vision
+
+The system will eventually support:
+
+**Phase 2** — Endpoint clustering and API surface discovery
+
+**Phase 3** — Domain modeling and entity extraction
+
+**Phase 4** — Automated documentation generation
+
+The current codebase must remain **clean and extensible** to support those future capabilities.
+
+Do not implement them yet.

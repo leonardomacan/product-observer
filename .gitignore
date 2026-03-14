@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+dist/
+build/
+data/raw_requests/*.json
+data/raw_requests/*.json.gz
+browser_profile/
