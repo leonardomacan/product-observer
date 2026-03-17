@@ -5,8 +5,6 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-
 from .config import get_settings
 from .datasets import DatasetLayout, ensure_parent_dirs
 from .run_metadata import RunMeta
@@ -14,7 +12,6 @@ from .artifacts import update_artifacts_for_run
 
 
 logger = logging.getLogger("product_observer.runner")
-console = Console()
 
 
 def _copy_phase1_capture_to_run(layout: DatasetLayout) -> None:
@@ -36,9 +33,10 @@ def _copy_phase1_capture_to_run(layout: DatasetLayout) -> None:
     env["OUTPUT_DIR"] = str(layout.raw_requests_dir)
     env["TARGET_URL"] = settings.target_url
 
-    console.print(
-        f"[bold cyan]STEP 1/4[/bold cyan]: Logging raw requests for "
-        f"scenario '{layout.scenario}' (system '{layout.target_system}')...",
+    logger.info(
+        "STEP 1/4: Logging raw requests for scenario '%s' (system '%s')...",
+        layout.scenario,
+        layout.target_system,
     )
     # Run the existing main.py entrypoint in a subprocess so it can manage
     # Playwright and its own event loop as-is.
@@ -53,7 +51,7 @@ def _run_phase2(layout: DatasetLayout) -> None:
     """Execute Phase 2 into the run-specific phase2 directory."""
     from product_observer.phase2.run import main as phase2_main
 
-    console.print("[bold cyan]STEP 2/4[/bold cyan]: Analyzing endpoints (Phase 2)...")
+    logger.info("STEP 2/4: Analyzing endpoints (Phase 2)...")
 
     # Monkey-patch sys.argv for the existing CLI-style entrypoint.
     import sys
@@ -77,7 +75,7 @@ def _run_phase3(layout: DatasetLayout) -> None:
     """Execute Phase 3 into the run-specific phase3 directory."""
     from product_observer.phase3.run import main as phase3_main
 
-    console.print("[bold cyan]STEP 3/4[/bold cyan]: Running domain discovery (Phase 3)...")
+    logger.info("STEP 3/4: Running domain discovery (Phase 3)...")
 
     import sys
 
@@ -104,7 +102,7 @@ def _run_phase4(layout: DatasetLayout, *, no_llm: bool = False) -> Path:
     """
     from product_observer.phase4.run import main as phase4_main
 
-    console.print("[bold cyan]STEP 4/4[/bold cyan]: Generating documentation and narratives (Phase 4)...")
+    logger.info("STEP 4/4: Generating documentation and narratives (Phase 4)...")
 
     import sys
 
@@ -138,34 +136,36 @@ def _write_run_meta(layout: DatasetLayout, meta: RunMeta) -> None:
 
 def run_observation(layout: DatasetLayout, meta: RunMeta, *, no_llm: bool = False) -> None:
     """Execute the full four-step observation pipeline for a single run."""
-    console.print(
-        f"[bold]Starting observation run {meta.run_id}[/bold] "
-        f"for scenario '{meta.scenario}' on system '{meta.target_system}'.",
+    logger.info(
+        "Starting observation run %s for scenario '%s' on system '%s'.",
+        meta.run_id,
+        meta.scenario,
+        meta.target_system,
     )
 
     # Step 1: capture
     _copy_phase1_capture_to_run(layout)
     meta.phases_completed.append("capture")
     _write_run_meta(layout, meta)
-    console.print("[green]STEP 1/4 complete.[/green]")
+    logger.info("STEP 1/4 complete.")
 
     # Step 2: API intelligence
     _run_phase2(layout)
     meta.phases_completed.append("phase2")
     _write_run_meta(layout, meta)
-    console.print("[green]STEP 2/4 complete.[/green]")
+    logger.info("STEP 2/4 complete.")
 
     # Step 3: domain discovery
     _run_phase3(layout)
     meta.phases_completed.append("phase3")
     _write_run_meta(layout, meta)
-    console.print("[green]STEP 3/4 complete.[/green]")
+    logger.info("STEP 3/4 complete.")
 
     # Step 4: knowledge & documentation
     narrative_path = _run_phase4(layout, no_llm=no_llm)
     meta.phases_completed.append("phase4")
     _write_run_meta(layout, meta)
-    console.print("[green]STEP 4/4 complete.[/green]")
+    logger.info("STEP 4/4 complete.")
 
     # Update aggregated artifacts for this target system.
     update_artifacts_for_run(layout)
@@ -179,9 +179,10 @@ def run_observation(layout: DatasetLayout, meta: RunMeta, *, no_llm: bool = Fals
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Obsidian sync failed: %s", exc)
 
-    console.print(
-        f"[bold green]Run {meta.run_id} completed.[/bold green] "
-        f"Outputs are under: {layout.run_root}",
+    logger.info(
+        "Run %s completed. Outputs are under: %s",
+        meta.run_id,
+        layout.run_root,
     )
 
 
@@ -204,23 +205,28 @@ def inspect_run_summary(
 
     summary = index.scenarios.get(scenario)
     if summary is None or not summary.runs:
-        console.print(
-            f"[yellow]No runs found for scenario '{scenario}' on system '{target_system}'.[/yellow]",
+        logger.info(
+            "No runs found for scenario '%s' on system '%s'.",
+            scenario,
+            target_system,
         )
         return 1
 
     if run_number is not None:
         meta = next((r for r in summary.runs if r.run_number == run_number), None)
         if meta is None:
-            console.print(
-                f"[yellow]Run number {run_number} not found for scenario '{scenario}'.[/yellow]",
+            logger.info(
+                "Run number %s not found for scenario '%s'.",
+                run_number,
+                scenario,
             )
             return 1
     else:
         meta = summary.latest_run
         if meta is None:
-            console.print(
-                f"[yellow]No latest run available for scenario '{scenario}'.[/yellow]",
+            logger.info(
+                "No latest run available for scenario '%s'.",
+                scenario,
             )
             return 1
 
@@ -236,18 +242,16 @@ def inspect_run_summary(
     most_frequent_endpoint = workflows_info.get("most_frequent_endpoint")
     workflows_detected = workflows_info.get("workflows_detected", 0)
 
-    console.print(f"[bold]Run summary for {meta.run_id}[/bold]")
-    console.print(f"Target system : {meta.target_system}")
-    console.print(f"Scenario      : {meta.scenario}")
-    console.print(f"Target URL    : {meta.target_url}")
-    console.print(f"Created at    : {meta.created_at.isoformat(timespec='seconds')}")
-    console.print(f"Phases        : {', '.join(meta.phases_completed) or '-'}")
-    console.print("")
-    console.print(f"Endpoints observed : {endpoints_count}")
-    console.print(f"Workflows detected : {workflows_detected}")
+    logger.info("Run summary for %s", meta.run_id)
+    logger.info("Target system : %s", meta.target_system)
+    logger.info("Scenario      : %s", meta.scenario)
+    logger.info("Target URL    : %s", meta.target_url)
+    logger.info("Created at    : %s", meta.created_at.isoformat(timespec="seconds"))
+    logger.info("Phases        : %s", ", ".join(meta.phases_completed) or "-")
+    logger.info("Endpoints observed : %s", endpoints_count)
+    logger.info("Workflows detected : %s", workflows_detected)
     if most_frequent_endpoint:
-        console.print("Most frequent endpoint:")
-        console.print(f"  {most_frequent_endpoint}")
+        logger.info("Most frequent endpoint: %s", most_frequent_endpoint)
 
     return 0
 
