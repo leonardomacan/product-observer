@@ -1,9 +1,11 @@
 """Load context files and generate workflow narratives via Anthropic API."""
 
-import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def load_context(context_dir: Path) -> str:
@@ -85,16 +87,40 @@ def generate_narratives(
     try:
         client = Anthropic(api_key=api_key.strip())
         message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             messages=[{"role": "user", "content": user_content}],
         )
+
+        # Log token usage and rough cost (based on public pricing) for visibility.
+        usage = getattr(message, "usage", None)
+        if usage is not None:
+            input_tokens = getattr(usage, "input_tokens", None)
+            output_tokens = getattr(usage, "output_tokens", None)
+            if input_tokens is not None and output_tokens is not None:
+                # Approximate pricing for Sonnet 4.x (USD per 1M tokens).
+                input_rate = 3.0   # $3 per 1M input tokens
+                output_rate = 15.0  # $15 per 1M output tokens
+                cost = (input_tokens / 1_000_000.0) * input_rate + (output_tokens / 1_000_000.0) * output_rate
+                logger.info(
+                    "Phase 4 LLM usage: input_tokens=%s, output_tokens=%s, estimated_cost_usd=%.6f",
+                    input_tokens,
+                    output_tokens,
+                    cost,
+                )
+            else:
+                logger.info("Phase 4 LLM usage: usage object present but token fields missing: %r", usage)
+
         if message.content and len(message.content) > 0:
             block = message.content[0]
             if hasattr(block, "text"):
                 return block.text
             if isinstance(block, dict) and block.get("type") == "text":
                 return block.get("text", "")
+            if isinstance(block, dict) and "text" in block:
+                return block["text"]
+        logger.warning("Anthropic API returned empty or unexpected content structure")
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("Anthropic API call failed: %s", e)
         return None

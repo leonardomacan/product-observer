@@ -16,8 +16,14 @@ def _resolve_path(value: Optional[str], default: str) -> Path:
 
 
 class Settings(BaseModel):
-    """Application settings loaded from environment."""
+    """Application settings loaded from environment.
 
+    This model captures:
+    - core capture settings (target_url, output_dir, browser_profile_dir, delays, limits)
+    - high-level dataset concepts (target_system, scenario, datasets_root)
+    """
+
+    # Core capture configuration
     target_url: str = Field(..., description="Base URL of the target web application to observe")
     output_dir: Path = Field(default_factory=lambda: Path("data/raw_requests").resolve())
     browser_profile_dir: Path = Field(default_factory=lambda: Path("./browser_profile").resolve())
@@ -31,6 +37,22 @@ class Settings(BaseModel):
         default=1_000_000,
         ge=0,
         description="Warn when response exceeds this size (bytes)",
+    )
+
+    # Dataset-level concepts used by the observer CLI and run orchestrator.
+    # Defaults are conservative so existing usages (Phase 1–4 commands) keep working
+    # even if TARGET_SYSTEM / SCENARIO are not configured explicitly.
+    target_system: str = Field(
+        default="default_system",
+        description="Logical name of the target system being observed (e.g. WMS_BR).",
+    )
+    scenario: str = Field(
+        default="default_scenario",
+        description="Logical name of the scenario or flow being explored (e.g. inbound_navigation).",
+    )
+    datasets_root: Path = Field(
+        default_factory=lambda: Path("datasets").resolve(),
+        description="Root directory for structured datasets (runs, artifacts, knowledge).",
     )
 
     model_config = {"extra": "ignore"}
@@ -61,6 +83,11 @@ class Settings(BaseModel):
         compress_responses = os.getenv("COMPRESS_RESPONSES", "false").lower() in ("true", "1", "yes")
         large_response_threshold_bytes = int(os.getenv("LARGE_RESPONSE_THRESHOLD_BYTES", "1000000"))
 
+        # High-level dataset configuration; fall back to safe defaults if unset.
+        target_system = os.getenv("TARGET_SYSTEM", "default_system").strip() or "default_system"
+        scenario = os.getenv("SCENARIO", "default_scenario").strip() or "default_scenario"
+        datasets_root = _resolve_path(os.getenv("DATASETS_ROOT"), "datasets")
+
         return cls(
             target_url=target_url,
             output_dir=output_dir,
@@ -72,6 +99,9 @@ class Settings(BaseModel):
             filter_domain=filter_domain,
             compress_responses=compress_responses,
             large_response_threshold_bytes=large_response_threshold_bytes,
+            target_system=target_system,
+            scenario=scenario,
+            datasets_root=datasets_root,
         )
 
 

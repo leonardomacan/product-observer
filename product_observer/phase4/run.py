@@ -6,6 +6,8 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from product_observer.phase4.catalog import build_catalog
 from product_observer.phase4.loader import load_annotated_endpoints
 from product_observer.phase4.narrative import generate_narratives, load_context
@@ -58,6 +60,7 @@ def _context_dir() -> Path:
 
 def main() -> int:
     """Run Phase 4 pipeline. Returns 0 on success."""
+    load_dotenv()
     args = _parse_args()
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,

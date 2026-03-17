@@ -100,11 +100,11 @@ Always consult:
 docs/phases.md
 ```
 
-Do not implement features from future phases.
+Do not implement features from **Phase 4**.
 
-### Phase 1 (Current Phase)
+### Phase 1, Phase 2, and Phase 3 (Current Phases)
 
-Allowed features:
+**Phase 1** — Allowed features:
 
 - Playwright browser launch
 - reuse authenticated session
@@ -113,16 +113,29 @@ Allowed features:
 - raw request/response storage
 - structured logging
 
-Not allowed yet:
+**Phase 2** — Allowed features (implemented):
 
-- endpoint clustering
-- schema inference
-- entity extraction
-- workflow reconstruction
-- LLM integration
+- endpoint clustering and grouping of similar requests
+- schema inference from response payloads
+- reading Phase 1 data (e.g. data/raw_requests/)
+- writing Phase 2 reports (e.g. data/phase2/endpoints.json, api_surface.md)
+
+**Phase 3** — Allowed features (current phase):
+
+- domain and entity discovery from Phase 2 output
+- endpoint classification and labeling (e.g. category, domain hint, purpose)
+- activation of the domain layer (domains/wms, domains/ecommerce, domains/erp)
+- endpoint patterns, entity extractors, workflow rules or labels
+- optional LLM integration for annotation and labeling only
+- reading Phase 2 data (e.g. data/phase2/endpoints.json); writing Phase 3 output (e.g. data/phase3/)
+
+Not allowed yet (Phase 4 only):
+
 - documentation generation
+- API catalogs and full workflow documentation
+- knowledge artifacts and templates per domain
 
-If a requested change belongs to a future phase, explain why and avoid implementing it prematurely.
+If a requested change belongs to Phase 4, explain why and avoid implementing it prematurely.
 
 ---
 
@@ -169,6 +182,8 @@ network/
 storage/
 models/
 utils/
+phase2/
+phase3/
 domains/
 ```
 
@@ -182,7 +197,9 @@ Responsibilities:
 | storage | persistence of captured data |
 | config | environment configuration |
 | utils | shared utilities |
-| domains | domain-specific extensions |
+| phase2 | API intelligence: load raw data, cluster endpoints, infer schemas, report |
+| phase3 | domain discovery: consume Phase 2, run domain plugins, annotate endpoints, write Phase 3 output |
+| domains | domain-specific extensions (wms, ecommerce, erp: patterns, entity extractors, workflow rules) |
 
 The **core must never depend on domains**.
 
@@ -225,7 +242,7 @@ Captured data must be stored as:
 data/raw_requests/
 ```
 
-Optional gzip compression is allowed.
+Optional gzip compression is allowed. Phase 2 analysis output is written to `data/phase2/`. Phase 3 output (e.g. annotated endpoints) is written to `data/phase3/`.
 
 ---
 
@@ -315,14 +332,14 @@ The agent should:
 
 # 11. Long-Term Vision
 
+**Phase 2** — Implemented: endpoint clustering and API surface discovery.
+
+**Phase 3** — Current phase: domain modeling and entity extraction; domain-layer activation; optional LLM annotation.
+
 The system will eventually support:
 
-**Phase 2** — Endpoint clustering and API surface discovery
-
-**Phase 3** — Domain modeling and entity extraction
-
-**Phase 4** — Automated documentation generation
+**Phase 4** — Automated documentation generation (do not implement yet).
 
 The current codebase must remain **clean and extensible** to support those future capabilities.
 
-Do not implement them yet.
+Do not implement Phase 4 yet.
