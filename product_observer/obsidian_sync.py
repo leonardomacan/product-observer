@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 import requests
 
@@ -54,18 +55,20 @@ def sync_narrative_to_obsidian(meta: RunMeta, narrative_path: Path) -> None:
     )
     body = header + content
 
-    url = base_url.rstrip("/") + "/vault"
+    # Obsidian Local REST API (as used by `brd-analyzer.html`) expects:
+    #   PUT /vault/<encoded-note-path>
+    # with the raw markdown content as the request body.
+    #
+    # Note: we must URL-encode the full note path because the vault folder
+    # includes spaces.
+    url = base_url.rstrip("/") + "/vault/" + quote(note_path, safe="")
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "path": note_path,
-        "content": body,
+        "Content-Type": "text/markdown",
     }
 
     try:
-        requests.post(url, json=payload, headers=headers, timeout=5)
+        requests.put(url, data=body, headers=headers, timeout=5)
     except Exception:
         # Intentionally swallow all errors here: Obsidian sync is best-effort.
         return
