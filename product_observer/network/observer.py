@@ -53,6 +53,11 @@ class NetworkObserver:
         self._capture_count = 0
         self._limit_reached = False
 
+    @property
+    def capture_count(self) -> int:
+        """Number of API responses saved this session (for Phase 1 progress)."""
+        return self._capture_count
+
     def _is_api_call(self, request: Request) -> bool:
         """Determine if the request is likely an API call."""
         url = request.url

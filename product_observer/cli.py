@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Optional
@@ -381,6 +382,13 @@ def _command_reset(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    # So runner/phase INFO lines (e.g. STEP 1/4) appear without extra setup.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+
     parser = _build_parser()
     args = parser.parse_args(argv)
 

@@ -8,6 +8,7 @@ intact.
 """
 
 import asyncio
+import contextlib
 import sys
 
 from rich.console import Console
@@ -17,6 +18,23 @@ from product_observer.config import get_settings
 from product_observer.logging_config import configure_logging
 from product_observer.network.observer import NetworkObserver
 from product_observer.storage.file_store import FileStorage
+
+# Periodic reminder while capture is idle between API calls.
+_PHASE1_HEARTBEAT_SECONDS = 30.0
+
+
+async def _phase1_heartbeat(observer: NetworkObserver, console: Console) -> None:
+    """Print capture status every N seconds so long quiet periods do not look stuck."""
+    try:
+        while True:
+            await asyncio.sleep(_PHASE1_HEARTBEAT_SECONDS)
+            n = observer.capture_count
+            console.print(
+                f"[dim]Phase 1 — still capturing ({n} API request(s) saved so far). "
+                "Press Ctrl+C when finished.[/dim]"
+            )
+    except asyncio.CancelledError:
+        raise
 
 
 async def _run() -> None:
@@ -40,13 +58,19 @@ async def _run() -> None:
         console = Console()
         console.print(
             "\n[bold green]Product Observer – Network capture[/bold green]\n"
-            "Log in and interact with the app. API traffic will be captured.\n"
-            "Press [bold]Ctrl+C[/bold] to stop.\n"
+            f"Output directory: [cyan]{settings.output_dir}[/cyan]\n"
+            "Log in and interact with the app. Matching API traffic is saved and logged below.\n"
+            "Press [bold]Ctrl+C[/bold] in this terminal when you are done (then the parent run continues to Phase 2).\n"
         )
 
-        # Keep running until interrupted.
-        while True:
-            await asyncio.sleep(1)
+        heartbeat = asyncio.create_task(_phase1_heartbeat(observer, console))
+        try:
+            while True:
+                await asyncio.sleep(1)
+        finally:
+            heartbeat.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await heartbeat
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:

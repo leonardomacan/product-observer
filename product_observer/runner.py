@@ -38,12 +38,26 @@ def _copy_phase1_capture_to_run(layout: DatasetLayout) -> None:
         layout.scenario,
         layout.target_system,
     )
+    print(
+        "\n======== Phase 1/4 — network capture ========\n"
+        f"Raw requests folder: {layout.raw_requests_dir}\n"
+        "A browser window will open. Use the app; matching API calls are logged below.\n"
+        "When you are done, press Ctrl+C in this terminal.\n"
+        "(Closing only the browser may not stop capture — use Ctrl+C here.)\n"
+        "After capture stops, Phases 2–4 run automatically in this same process.\n"
+        "============================================\n",
+        flush=True,
+    )
     # Run the existing main.py entrypoint in a subprocess so it can manage
     # Playwright and its own event loop as-is.
     subprocess.run(
         [sys.executable, "-m", "product_observer.main"],
         env=env,
         check=False,
+    )
+    print(
+        "\n======== Phase 1/4 finished — starting Phase 2/4 ========\n",
+        flush=True,
     )
 
 
